@@ -8,8 +8,8 @@ if (Test-Path "$VENV_PATH/Scripts/Activate.ps1") {
     Write-Host "🚀 Kích hoạt môi trường ảo (venv)..." -ForegroundColor Cyan
     & "$VENV_PATH/Scripts/Activate.ps1"
     
-    Write-Host "🔥 Khởi động Firestarter AI Backend..." -ForegroundColor Yellow
-    python run.py
+    Write-Host "🔥 Khởi động Firestarter AI Backend (Port 8000)..." -ForegroundColor Yellow
+    python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 } else {
     Write-Host "❌ Không tìm thấy venv tại $VENV_PATH" -ForegroundColor Red
 }
