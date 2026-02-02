@@ -1,6 +1,7 @@
 # Backend Core
 fastapi
-uvicorn
+uvicorn[standard]
+websockets
 pydantic
 pydantic-settings
 httpx
