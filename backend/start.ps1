@@ -2,7 +2,7 @@
 $PSScriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Definition
 Set-Location $PSScriptRoot
 
-$VENV_PATH = "../venv"
+$VENV_PATH = "./venv"
 
 if (Test-Path "$VENV_PATH/Scripts/Activate.ps1") {
     Write-Host "🚀 Kích hoạt môi trường ảo (venv)..." -ForegroundColor Cyan
