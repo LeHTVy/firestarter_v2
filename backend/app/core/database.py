@@ -11,15 +11,19 @@ DATABASE_URL = os.getenv("DATABASE_URL")
 if not DATABASE_URL:
     raise ValueError("❌ DATABASE_URL không tìm thấy trong file .env. Hãy kiểm tra lại!")
 
-# Convert postgresql:// to postgresql+asyncpg:// for async support
 if DATABASE_URL.startswith("postgresql://") and "asyncpg" not in DATABASE_URL:
     DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://", 1)
 
-# Xóa bỏ các tham số query không tương thích với asyncpg (như pgbouncer)
 if "?" in DATABASE_URL:
     DATABASE_URL = DATABASE_URL.split("?")[0]
 
-engine = create_async_engine(DATABASE_URL, echo=False, pool_size=5, max_overflow=10)
+engine = create_async_engine(
+    DATABASE_URL, 
+    echo=False, 
+    pool_size=5, 
+    max_overflow=10,
+    connect_args={"prepared_statement_cache_size": 0}
+)
 async_session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
 Base = declarative_base()
@@ -57,9 +61,9 @@ class Finding(Base):
     
     id = Column(String, primary_key=True)
     target_id = Column(String, nullable=False, index=True)
-    type = Column(String, nullable=False, index=True)  # subdomain, vuln, info
+    type = Column(String, nullable=False, index=True)  
     value = Column(Text, nullable=False)
-    severity = Column(String, default="info")  # info/low/medium/high/critical
+    severity = Column(String, default="info")  
     confidence = Column(Integer, default=80)
     source_tool = Column(String, nullable=True)
     metadata_ = Column("metadata", JSON, default={})
@@ -70,9 +74,9 @@ class Embedding(Base):
     __tablename__ = "embeddings"
     
     id = Column(String, primary_key=True)
-    object_type = Column(String, nullable=False, index=True)  # finding, port, vuln, subdomain
+    object_type = Column(String, nullable=False, index=True)  
     object_id = Column(String, nullable=False, index=True)
-    vector = Column(Vector(1536))  # OpenAI/Ollama embedding dimension
+    vector = Column(Vector(1536))  
     metadata_ = Column("metadata", JSON, default={})
     created_at = Column(DateTime, server_default=func.now())
 
