@@ -10,7 +10,9 @@ from app.agents.orchestrator import orchestrator
 from app.core.database import init_db
 from app.core.redis import redis_client
 
-load_dotenv()
+# Tải file .env từ thư mục gốc của backend
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+load_dotenv(os.path.join(BASE_DIR, ".env"))
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
