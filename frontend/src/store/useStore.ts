@@ -62,8 +62,10 @@ export const useStore = create<AgentState>((set) => ({
     setModel: (model) => set({ currentModel: model }),
     setTarget: (target) => set({ selectedTarget: target }),
     fetchModels: async () => {
+        const hostname = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
+        const apiUrl = `http://${hostname}:8000`;
         try {
-            const response = await fetch('http://localhost:8000/api/models');
+            const response = await fetch(`${apiUrl}/api/models`);
             if (response.ok) {
                 const data = await response.json();
                 const models = data.models.map((m: any) => m.name);
@@ -98,7 +100,9 @@ export const useStore = create<AgentState>((set) => ({
         set((state) => ({ messages: [...state.messages, userMsg] }));
 
         try {
-            const response = await fetch('http://localhost:8000/api/chat', {
+            const hostname = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
+            const apiUrl = `http://${hostname}:8000`;
+            const response = await fetch(`${apiUrl}/api/chat`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
