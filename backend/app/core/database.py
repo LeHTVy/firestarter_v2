@@ -6,10 +6,13 @@ from sqlalchemy.orm import declarative_base
 from sqlalchemy import Column, String, Integer, Text, DateTime, JSON, func
 from pgvector.sqlalchemy import Vector
 
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql+asyncpg://user:password@localhost:5432/firestarter")
+DATABASE_URL = os.getenv("DATABASE_URL")
+
+if not DATABASE_URL:
+    raise ValueError("❌ DATABASE_URL không tìm thấy trong file .env. Hãy kiểm tra lại!")
 
 # Convert postgresql:// to postgresql+asyncpg:// for async support
-if DATABASE_URL.startswith("postgresql://"):
+if DATABASE_URL.startswith("postgresql://") and "asyncpg" not in DATABASE_URL:
     DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://", 1)
 
 engine = create_async_engine(DATABASE_URL, echo=False, pool_size=5, max_overflow=10)

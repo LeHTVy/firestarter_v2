@@ -53,7 +53,11 @@ export const TerminalComponent: React.FC<TerminalComponentProps> = ({ logs }) =>
         // Only fit if dimensions are valid (element has height/width)
         const rect = terminalRef.current?.getBoundingClientRect();
         if (rect && rect.width > 0 && rect.height > 0) {
-          fitAddon.fit();
+          // Xterm renderer sometimes needs an extra tick to be ready
+          // @ts-ignore - access internal renderer to check readiness
+          if (term._core?._renderer?._value || term.renderer) {
+            fitAddon.fit();
+          }
         }
       } catch (e) {
         // Silently fail as this is often just a timing issue
