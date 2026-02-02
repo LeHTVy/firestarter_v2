@@ -1,0 +1,25 @@
+# Backend Core
+fastapi
+uvicorn
+pydantic
+pydantic-settings
+httpx
+jinja2
+
+# Database (Direct PostgreSQL, NOT Supabase SDK)
+asyncpg
+sqlalchemy[asyncio]
+pgvector
+
+# Short-term Memory
+redis
+
+# Structured Parsing
+orjson
+jsonschema
+
+# Agent & RAG
+langchain-ollama
+
+# Security Tools
+python-nmap
