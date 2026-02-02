@@ -50,17 +50,17 @@ export const TerminalComponent: React.FC<TerminalComponentProps> = ({ logs }) =>
       if (isDisposed || !term.element || !term.element.closest('body')) return;
       
       try {
-        // Only fit if dimensions are valid (element has height/width)
         const rect = terminalRef.current?.getBoundingClientRect();
         if (rect && rect.width > 0 && rect.height > 0) {
-          // Xterm renderer sometimes needs an extra tick to be ready
-          // @ts-ignore - access internal renderer to check readiness
-          if (term._core?._renderer?._value || term.renderer) {
+          // Xterm 5.0+ internal checks
+          // @ts-ignore
+          const core = term._core;
+          if (core && core._renderService && core._renderService.dimensions) {
             fitAddon.fit();
           }
         }
       } catch (e) {
-        // Silently fail as this is often just a timing issue
+        // Silently fail as this is frequently a timing issue in React
       }
     };
 
@@ -76,9 +76,11 @@ export const TerminalComponent: React.FC<TerminalComponentProps> = ({ logs }) =>
     const hostname = window.location.hostname;
     const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const wsUrl = `${wsProtocol}//${hostname}:8000/ws/terminal`;
+    console.log('🔌 Connecting to Terminal WebSocket:', wsUrl);
     const socket = new WebSocket(wsUrl);
 
     socket.onopen = () => {
+      console.log('✅ Terminal WebSocket connected');
       term.writeln('\x1b[1;32m[Connected to Firestarter Backend]\x1b[0m');
       term.writeln('');
     };
@@ -87,7 +89,12 @@ export const TerminalComponent: React.FC<TerminalComponentProps> = ({ logs }) =>
       term.write(event.data);
     };
 
-    socket.onclose = () => {
+    socket.onerror = (error) => {
+      console.error('❌ Terminal WebSocket error:', error);
+    };
+
+    socket.onclose = (event) => {
+      console.warn('🔌 Terminal WebSocket closed:', event.code, event.reason);
       term.writeln('\x1b[1;31m[Disconnected from Backend]\x1b[0m');
     };
 
