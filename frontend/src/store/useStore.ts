@@ -25,6 +25,12 @@ interface AgentState {
     messages: Message[];
     availableModels: string[];
     currentModel: string;
+    operationalMode: 'quick' | 'multi-agent';
+    agentBrainMapping: {
+        recon: string;
+        exploit: string;
+        analytic: string;
+    };
     selectedTarget: string | null;
 
     // Actions
@@ -35,6 +41,8 @@ interface AgentState {
     addFinding: (finding: Finding) => void;
     addMessage: (message: Message) => void;
     setModel: (model: string) => void;
+    setMode: (mode: AgentState['operationalMode']) => void;
+    updateAgentBrain: (role: keyof AgentState['agentBrainMapping'], model: string) => void;
     setTarget: (target: string | null) => void;
     fetchModels: () => Promise<void>;
     sendMessage: (content: string) => Promise<void>;
@@ -49,8 +57,14 @@ export const useStore = create<AgentState>((set) => ({
     messages: [
         { id: '1', role: 'agent', content: 'Hello! I am Firestarter Agent. How can I assist you with your security assessment today?', timestamp: new Date().toISOString() }
     ],
-    availableModels: ['Multi-Model'],
-    currentModel: 'Multi-Model',
+    availableModels: [],
+    currentModel: 'Select Model',
+    operationalMode: 'quick',
+    agentBrainMapping: {
+        recon: '',
+        exploit: '',
+        analytic: ''
+    },
     selectedTarget: null,
 
     setStatus: (status) => set({ status }),
@@ -60,6 +74,10 @@ export const useStore = create<AgentState>((set) => ({
     addFinding: (finding) => set((state) => ({ findings: [finding, ...state.findings] })),
     addMessage: (message) => set((state) => ({ messages: [...state.messages, message] })),
     setModel: (model) => set({ currentModel: model }),
+    setMode: (mode) => set({ operationalMode: mode }),
+    updateAgentBrain: (role, model) => set((state) => ({
+        agentBrainMapping: { ...state.agentBrainMapping, [role]: model }
+    })),
     setTarget: (target) => set({ selectedTarget: target }),
     fetchModels: async () => {
         const hostname = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
@@ -68,10 +86,30 @@ export const useStore = create<AgentState>((set) => ({
             const response = await fetch(`${apiUrl}/api/models`);
             if (response.ok) {
                 const data = await response.json();
-                const models = data.models.map((m: any) => m.name);
-                set((state) => ({
-                    availableModels: ['Multi-Model', ...models]
-                }));
+                const modelNames = data.models.map((m: any) => m.name);
+
+                set((state) => {
+                    const newMapping = { ...state.agentBrainMapping };
+                    let newCurrentModel = state.currentModel;
+
+                    // Populate mapping if empty
+                    if (modelNames.length > 0) {
+                        if (!newMapping.recon) newMapping.recon = modelNames[0];
+                        if (!newMapping.exploit) newMapping.exploit = modelNames[0];
+                        if (!newMapping.analytic) newMapping.analytic = modelNames[0];
+
+                        // Set current model if not set or default
+                        if (newCurrentModel === 'Select Model' || !modelNames.includes(newCurrentModel)) {
+                            newCurrentModel = modelNames[0];
+                        }
+                    }
+
+                    return {
+                        availableModels: modelNames,
+                        agentBrainMapping: newMapping,
+                        currentModel: newCurrentModel
+                    };
+                });
             }
         } catch (error) {
             console.warn('Backend not detected. Falling back to Ollama direct.');

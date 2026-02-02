@@ -1,10 +1,11 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from pydantic import BaseModel
 from typing import List, Optional
 import httpx
 import os
+import asyncio
 from dotenv import load_dotenv
 
 # Tải file .env từ thư mục gốc của backend (phải làm TRƯỚC khi import app.core)
@@ -14,6 +15,7 @@ load_dotenv(os.path.join(BASE_DIR, ".env"))
 from app.agents.orchestrator import orchestrator
 from app.core.database import init_db
 from app.core.redis import redis_client
+from app.core.terminal import terminal_manager
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -106,6 +108,33 @@ async def chat(request: ChatRequest):
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.websocket("/ws/terminal")
+async def terminal_websocket(websocket: WebSocket):
+    """WebSocket endpoint for real-time terminal interaction."""
+    await websocket.accept()
+    
+    # Define how to send data back to the websocket
+    async def send_to_frontend(data: str):
+        try:
+            await websocket.send_text(data)
+        except Exception:
+            pass
+
+    # Start the shell and register the callback
+    terminal_manager.start_shell(send_to_frontend)
+    
+    try:
+        while True:
+            # Receive input from terminal UI
+            data = await websocket.receive_text()
+            terminal_manager.write_input(data)
+    except WebSocketDisconnect:
+        print("🔌 Terminal WebSocket disconnected")
+        terminal_manager.stop()
+    except Exception as e:
+        print(f"❌ Terminal WebSocket error: {e}")
+        terminal_manager.stop()
 
 if __name__ == "__main__":
     import uvicorn

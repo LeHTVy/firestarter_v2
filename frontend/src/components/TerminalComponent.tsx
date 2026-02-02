@@ -72,9 +72,31 @@ export const TerminalComponent: React.FC<TerminalComponentProps> = ({ logs }) =>
     xtermRef.current = term;
     fitAddonRef.current = fitAddon;
 
-    term.writeln('\x1b[1;33m[Firestarter Engine v2.0]\x1b[0m Operational Terminal Initialized');
-    term.writeln('\x1b[1;30mTheme: Bumblebee (Black & Yellow)\x1b[0m');
-    term.writeln('');
+    // Connect to WebSocket
+    const hostname = window.location.hostname;
+    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsUrl = `${wsProtocol}//${hostname}:8000/ws/terminal`;
+    const socket = new WebSocket(wsUrl);
+
+    socket.onopen = () => {
+      term.writeln('\x1b[1;32m[Connected to Firestarter Backend]\x1b[0m');
+      term.writeln('');
+    };
+
+    socket.onmessage = (event) => {
+      term.write(event.data);
+    };
+
+    socket.onclose = () => {
+      term.writeln('\x1b[1;31m[Disconnected from Backend]\x1b[0m');
+    };
+
+    // Handle user input
+    term.onData((data) => {
+      if (socket.readyState === WebSocket.OPEN) {
+        socket.send(data);
+      }
+    });
 
     const resizeObserver = new ResizeObserver(() => {
       requestAnimationFrame(fitTerminal);
@@ -86,6 +108,7 @@ export const TerminalComponent: React.FC<TerminalComponentProps> = ({ logs }) =>
       isDisposed = true;
       clearTimeout(timer);
       resizeObserver.disconnect();
+      socket.close();
       term.dispose();
       xtermRef.current = null;
     };
@@ -95,8 +118,8 @@ export const TerminalComponent: React.FC<TerminalComponentProps> = ({ logs }) =>
     const term = xtermRef.current;
     if (term && logs.length > 0) {
       const lastLog = logs[logs.length - 1];
-      // Only write if the terminal is ready
-      if (term.element) {
+      // Only write log fallbacks if it looks like system info
+      if (term.element && (lastLog.includes('[Engine]') || lastLog.includes('Status'))) {
         term.writeln(lastLog);
       }
     }
