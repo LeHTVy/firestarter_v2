@@ -154,7 +154,7 @@ class ToolRAG:
                         description=embed_text,
                         vector=vector,
                         risk_level=tool.risk_level.value,
-                        metadata_={
+                        extra_metadata={
                             "capabilities": tool.capabilities,
                             "aliases": tool.aliases
                         }
@@ -173,7 +173,7 @@ class ToolRAG:
                                 description=cmd_text["text"],
                                 vector=cmd_vector,
                                 risk_level=tool.risk_level.value,
-                                metadata_={}
+                                extra_metadata={}
                             )
                             session.add(cmd_embedding)
                             indexed += 1

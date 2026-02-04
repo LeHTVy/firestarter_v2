@@ -49,6 +49,7 @@ class SessionState(BaseModel):
     mode: AgentMode = AgentMode.HITL
     current_target: Optional[str] = None
     current_target_id: Optional[str] = None
+    current_phase: str = "Ready"
     pending_action: Optional[PendingAction] = None
     history: List[str] = Field(default_factory=list)
     created_at: datetime = Field(default_factory=datetime.utcnow)

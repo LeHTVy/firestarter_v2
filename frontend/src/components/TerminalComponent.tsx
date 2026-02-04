@@ -50,28 +50,25 @@ export const TerminalComponent: React.FC<TerminalComponentProps> = ({ logs }) =>
       if (isDisposed || !term.element || !term.element.closest('body')) return;
       
       try {
-        const rect = terminalRef.current?.getBoundingClientRect();
-        if (rect && rect.width > 0 && rect.height > 0) {
+        const el = terminalRef.current;
+        if (el && el.offsetWidth > 0 && el.offsetHeight > 0) {
           // @ts-ignore
           const core = term._core;
           const renderer = core?._renderService?._renderer;
-          const isReady = !!(renderer?.value || core?._renderService?.dimensions);
+          const isReady = !!renderer?.value;
           
           if (isReady) {
             fitAddon.fit();
           } else {
-             // Not ready? Try again shortly
              setTimeout(() => {
                if (!isDisposed) requestAnimationFrame(fitTerminal);
-             }, 50);
+             }, 100);
           }
         }
       } catch (e) {
-        console.warn('⚠️ Terminal fit suppressed:', e);
       }
     };
 
-    // Delay initialization fitting
     const timer = setTimeout(() => {
       requestAnimationFrame(fitTerminal);
     }, 500);
@@ -103,7 +100,6 @@ export const TerminalComponent: React.FC<TerminalComponentProps> = ({ logs }) =>
     };
 
     socket.onerror = (error) => {
-      // WebSocket errors are events, logging more detail
       console.error('❌ Terminal WebSocket error event:', error);
       if (socket.readyState === WebSocket.CLOSED) {
          term.writeln('\x1b[1;31m[WebSocket Error: Connection Failed]\x1b[0m');
@@ -117,7 +113,6 @@ export const TerminalComponent: React.FC<TerminalComponentProps> = ({ logs }) =>
       }
     };
 
-    // Handle user input
     term.onData((data) => {
       if (socket && socket.readyState === WebSocket.OPEN) {
         socket.send(data);

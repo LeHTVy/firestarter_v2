@@ -57,13 +57,21 @@ class MemoryManager:
                 id=str(uuid.uuid4()),
                 domain=data.domain,
                 ip=data.ip,
-                metadata_=data.metadata_
+                extra_metadata=data.extra_metadata
             )
             session.add(target)
             await session.commit()
             await session.refresh(target)
             return Target.model_validate(target)
     
+    async def list_targets(self) -> List[Target]:
+        """Get all targets from PostgreSQL."""
+        async with async_session() as session:
+            stmt = select(TargetModel).order_by(TargetModel.created_at.desc())
+            result = await session.execute(stmt)
+            targets = result.scalars().all()
+            return [Target.model_validate(t) for t in targets]
+
     # --- Ports ---
     async def store_port(self, data: PortCreate) -> Port:
         """Store a port in PostgreSQL."""
@@ -120,7 +128,7 @@ class MemoryManager:
                 severity=data.severity,
                 confidence=data.confidence,
                 source_tool=data.source_tool,
-                metadata_=data.metadata
+                extra_metadata=data.extra_metadata
             )
             session.add(finding)
             await session.commit()

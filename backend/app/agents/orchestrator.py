@@ -131,7 +131,7 @@ class PentestOrchestrator:
                     target_obj = await memory_manager.store_target(TargetCreate(
                         domain=session.current_target if "." in session.current_target else "unknown",
                         ip=session.current_target if re.match(r"^\d+\.\d+\.\d+\.\d+$", session.current_target) else None,
-                        metadata_={}
+                        extra_metadata={}
                     ))
                     session.current_target_id = target_obj.id
                 except Exception as e:
@@ -144,13 +144,26 @@ class PentestOrchestrator:
             return {
                 "type": "response",
                 "content": display_response,
-                "session_id": session.session_id
+                "session_id": session.session_id,
+                "current_phase": session.current_phase
             }
 
         task = tasks[0]
-        category = task.get("category")
+        category = task.get("category", "recon").lower()
         task_description = task.get("description", category)
-        
+
+        # Update Phase for Flow Graph
+        if "recon" in category or "subdomain" in category or "discover" in category:
+            session.current_phase = "Reconnaissance"
+        elif "scan" in category or "port" in category:
+            session.current_phase = "Scanning"
+        elif "vuln" in category or "exploit" in category or "attack" in category:
+            session.current_phase = "Exploitation"
+        elif "report" in category:
+            session.current_phase = "Reporting"
+        else:
+            session.current_phase = "Scanning" # Default to scanning if unsure
+
         # ═══════════════════════════════════════════════════════════════
         # RAG-BASED TOOL SELECTION (replaces hard-coded CATEGORY_TO_TOOL)
         # ═══════════════════════════════════════════════════════════════
@@ -167,7 +180,8 @@ class PentestOrchestrator:
             return {
                 "type": "response",
                 "content": display_response,
-                "session_id": session.session_id
+                "session_id": session.session_id,
+                "current_phase": session.current_phase
             }
         
         # LLM selects best tool+command from candidates
@@ -182,7 +196,8 @@ class PentestOrchestrator:
             return {
                 "type": "response",
                 "content": display_response,
-                "session_id": session.session_id
+                "session_id": session.session_id,
+                "current_phase": session.current_phase
             }
         
         tool_name = selection.tool
@@ -221,7 +236,8 @@ class PentestOrchestrator:
                 "type": "confirmation_required",
                 "content": display_response,
                 "pending_action": pending.model_dump(),
-                "session_id": session.session_id
+                "session_id": session.session_id,
+                "current_phase": session.current_phase
             }
         
         # Auto-execution: Pipe to interactive terminal AND execute for analysis
@@ -268,14 +284,16 @@ class PentestOrchestrator:
                 "content": content,
                 "session_id": session.session_id,
                 "executed_command": command_str,
-                "result": result
+                "result": result,
+                "current_phase": session.current_phase
             }
         except Exception as e:
             return {
                 "type": "response",
                 "content": f"✅ Auto-executed: `{command_str}` (Analysis failed: {e})\n\n{display_response}",
                 "session_id": session.session_id,
-                "executed_command": command_str
+                "executed_command": command_str,
+                "current_phase": session.current_phase
             }
 
     async def confirm_action(
@@ -301,7 +319,8 @@ class PentestOrchestrator:
             return {
                 "type": "error",
                 "content": "Session not found",
-                "session_id": session_id
+                "session_id": session_id,
+                "current_phase": "Ready"
             }
         
         session = self.sessions[session_id]
@@ -310,14 +329,16 @@ class PentestOrchestrator:
             return {
                 "type": "error", 
                 "content": "No pending action to confirm",
-                "session_id": session_id
+                "session_id": session_id,
+                "current_phase": session.current_phase
             }
         
         if session.pending_action.action_id != action_id:
             return {
                 "type": "error",
                 "content": "Action ID mismatch",
-                "session_id": session_id
+                "session_id": session_id,
+                "current_phase": session.current_phase
             }
         
         pending = session.clear_pending_action()
@@ -326,7 +347,8 @@ class PentestOrchestrator:
             return {
                 "type": "response",
                 "content": f"❌ Action rejected: {pending.tool_name} on {pending.target}",
-                "session_id": session_id
+                "session_id": session_id,
+                "current_phase": session.current_phase
             }
         
         command = edited_command if edited_command else pending.command
@@ -386,20 +408,22 @@ class PentestOrchestrator:
                 "content": content,
                 "session_id": session_id,
                 "executed_command": command,
-                "result": result
+                "result": result,
+                "current_phase": session.current_phase
             }
             
         except Exception as e:
             return {
                 "type": "error",
                 "content": f"Critical error during execution: {str(e)}",
-                "session_id": session_id
+                "session_id": session_id,
+                "current_phase": session.current_phase
             }
 
     def switch_mode(self, session_id: str, mode: str) -> Dict[str, Any]:
         """Switch agent mode for a session."""
         if session_id not in self.sessions:
-            return {"success": False, "error": "Session not found"}
+            return {"success": False, "error": "Session not found", "current_phase": "Ready"}
         
         agent_mode = AgentMode(mode)
         self.sessions[session_id].switch_mode(agent_mode)

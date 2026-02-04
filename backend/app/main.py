@@ -91,6 +91,16 @@ async def health():
         "redis": redis_status
     }
 
+@app.get("/api/targets")
+async def get_targets():
+    """Get all targets from the database."""
+    try:
+        targets = await memory_manager.list_targets()
+        return targets
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.get("/api/models")
 async def get_models():
     """Fetch available models from local Ollama."""

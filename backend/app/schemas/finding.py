@@ -12,7 +12,7 @@ class FindingBase(BaseModel):
     severity: str = "info"  # info/low/medium/high/critical
     confidence: int = Field(default=80, ge=0, le=100)
     source_tool: Optional[str] = None
-    metadata: Dict[str, Any] = Field(default_factory=dict)
+    extra_metadata: Dict[str, Any] = Field(default_factory=dict)
 
 
 class FindingCreate(FindingBase):

@@ -10,7 +10,7 @@ class EmbeddingBase(BaseModel):
     object_type: str  # finding, port, vuln, subdomain
     object_id: str
     vector: List[float]
-    metadata: Dict[str, Any] = Field(default_factory=dict)
+    extra_metadata: Dict[str, Any] = Field(default_factory=dict)
 
 
 class EmbeddingCreate(EmbeddingBase):

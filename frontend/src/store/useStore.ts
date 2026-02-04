@@ -1,5 +1,13 @@
 import { create } from 'zustand';
 
+interface Target {
+    id: string;
+    domain: string;
+    ip?: string;
+    created_at: string;
+    extra_metadata: any;
+}
+
 interface Finding {
     id: string;
     type: string;
@@ -45,6 +53,8 @@ interface AgentState {
         analytic: string;
     };
     selectedTarget: string | null;
+    targets: Target[];
+    isBackendConnected: boolean;
 
     // Actions
     setStatus: (status: AgentState['status']) => void;
@@ -59,6 +69,8 @@ interface AgentState {
     setPendingAction: (action: PendingAction | null) => void;
     updateAgentBrain: (role: keyof AgentState['agentBrainMapping'], model: string) => void;
     setTarget: (target: string | null) => void;
+    fetchTargets: () => Promise<void>;
+    checkHealth: () => Promise<void>;
     fetchModels: () => Promise<void>;
     sendMessage: (content: string) => Promise<void>;
     confirmAction: (approved: boolean, editedCommand?: string) => Promise<void>;
@@ -85,6 +97,8 @@ export const useStore = create<AgentState>((set, get) => ({
         analytic: ''
     },
     selectedTarget: null,
+    targets: [],
+    isBackendConnected: true, // Default to true, will be updated by health check
 
     setStatus: (status) => set({ status }),
     setPhase: (phase) => set({ currentPhase: phase }),
@@ -100,6 +114,31 @@ export const useStore = create<AgentState>((set, get) => ({
         agentBrainMapping: { ...state.agentBrainMapping, [role]: model }
     })),
     setTarget: (target) => set({ selectedTarget: target }),
+
+    checkHealth: async () => {
+        const hostname = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
+        const apiUrl = `http://${hostname}:8000`;
+        try {
+            const response = await fetch(`${apiUrl}/api/health`);
+            set({ isBackendConnected: response.ok });
+        } catch (error) {
+            set({ isBackendConnected: false });
+        }
+    },
+
+    fetchTargets: async () => {
+        const hostname = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
+        const apiUrl = `http://${hostname}:8000`;
+        try {
+            const response = await fetch(`${apiUrl}/api/targets`);
+            if (response.ok) {
+                const data = await response.json();
+                set({ targets: data });
+            }
+        } catch (error) {
+            console.error('Failed to fetch targets:', error);
+        }
+    },
 
     fetchModels: async () => {
         const hostname = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
@@ -184,6 +223,10 @@ export const useStore = create<AgentState>((set, get) => ({
                     set({ sessionId: data.session_id });
                 }
 
+                if (data.current_phase) {
+                    set({ currentPhase: data.current_phase });
+                }
+
                 // Handle confirmation required
                 if (data.type === 'confirmation_required' && data.pending_action) {
                     set({ pendingAction: data.pending_action });
@@ -192,10 +235,13 @@ export const useStore = create<AgentState>((set, get) => ({
                 const agentMsg: Message = {
                     id: (Date.now() + 1).toString(),
                     role: 'agent',
-                    content: data.message.content,
+                    content: data.message?.content || data.content || "Target assessment in progress...",
                     timestamp: new Date().toISOString()
                 };
                 set((state) => ({ messages: [...state.messages, agentMsg] }));
+
+                // Refresh targets list since a new target might have been added
+                get().fetchTargets();
             }
         } catch (error) {
             console.error('Failed to send message:', error);
@@ -236,6 +282,10 @@ export const useStore = create<AgentState>((set, get) => ({
 
                 // Clear pending action
                 set({ pendingAction: null });
+
+                if (data.current_phase) {
+                    set({ currentPhase: data.current_phase });
+                }
 
                 // Add response message
                 const agentMsg: Message = {

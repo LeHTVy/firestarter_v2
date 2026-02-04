@@ -8,10 +8,8 @@ import {
   Handle, 
   Position, 
   NodeProps,
-  BaseEdge,
-  EdgeProps,
-  getBezierPath,
 } from '@xyflow/react';
+import { useStore } from '@/store/useStore';
 import '@xyflow/react/dist/style.css';
 
 const AgentNode = ({ data }: NodeProps) => {
@@ -36,31 +34,55 @@ const AgentNode = ({ data }: NodeProps) => {
   );
 };
 
-const initialNodes = [
-  { id: '1', type: 'agentNode', position: { x: 250, y: 0 }, data: { label: 'Target Normalize', status: 'done' } },
-  { id: '2', type: 'agentNode', position: { x: 250, y: 100 }, data: { label: 'Recon Agent', status: 'running' } },
-  { id: '3', type: 'agentNode', position: { x: 250, y: 200 }, data: { label: 'Scan Agent', status: 'pending' } },
-  { id: '4', type: 'agentNode', position: { x: 250, y: 300 }, data: { label: 'Vuln Agent', status: 'pending' } },
-  { id: '5', type: 'agentNode', position: { x: 250, y: 400 }, data: { label: 'Report Agent', status: 'pending' } },
-];
-
-const initialEdges = [
-  { id: 'e1-2', source: '1', target: '2', animated: true },
-  { id: 'e2-3', source: '2', target: '3' },
-  { id: 'e3-4', source: '3', target: '4' },
-  { id: 'e4-5', source: '4', target: '5' },
-];
-
 const nodeTypes = {
   agentNode: AgentNode,
 };
 
 export const FlowGraph = () => {
+  const { status, currentPhase } = useStore();
+
+  const phases = [
+    { id: 'normalization', label: 'Normalization' },
+    { id: 'reconnaissance', label: 'Reconnaissance' },
+    { id: 'scanning', label: 'Scanning' },
+    { id: 'exploitation', label: 'Exploitation' },
+    { id: 'reporting', label: 'Reporting' },
+  ];
+
+  // Map phase labels to status
+  const getStatus = (phaseId: string) => {
+    const currentIdx = phases.findIndex(p => p.id === currentPhase.toLowerCase() || p.label === currentPhase);
+    const thisIdx = phases.findIndex(p => p.id === phaseId);
+
+    if (thisIdx < currentIdx) return 'done';
+    if (thisIdx === currentIdx) {
+        return status === 'running' ? 'running' : 'done';
+    }
+    return 'pending';
+  };
+
+  const nodes = phases.map((p, i) => ({
+    id: p.id,
+    type: 'agentNode',
+    position: { x: 250, y: i * 100 },
+    data: { 
+      label: p.label, 
+      status: getStatus(p.id) 
+    },
+  }));
+
+  const edges = phases.slice(0, -1).map((p, i) => ({
+    id: `e${i}`,
+    source: p.id,
+    target: phases[i + 1].id,
+    animated: getStatus(phases[i+1].id) === 'running' || getStatus(p.id) === 'running',
+  }));
+
   return (
     <div className="w-full h-full bg-[#1d252d]">
       <ReactFlow
-        nodes={initialNodes}
-        edges={initialEdges}
+        nodes={nodes}
+        edges={edges}
         nodeTypes={nodeTypes}
         fitView
       >

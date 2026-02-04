@@ -47,7 +47,7 @@ class Target(Base):
     domain = Column(String, nullable=False, index=True)
     ip = Column(String, nullable=True)
     created_at = Column(DateTime, server_default=func.now())
-    metadata_ = Column("metadata", JSON, default={})
+    extra_metadata = Column("extra_metadata", JSON, default={})
 
 
 class Port(Base):
@@ -75,7 +75,7 @@ class Finding(Base):
     severity = Column(String, default="info")  
     confidence = Column(Integer, default=80)
     source_tool = Column(String, nullable=True)
-    metadata_ = Column("metadata", JSON, default={})
+    extra_metadata = Column("extra_metadata", JSON, default={})
     created_at = Column(DateTime, server_default=func.now())
 
 
@@ -86,7 +86,7 @@ class Embedding(Base):
     object_type = Column(String, nullable=False, index=True)  
     object_id = Column(String, nullable=False, index=True)
     vector = Column(Vector(768))  
-    metadata_ = Column("metadata", JSON, default={})
+    extra_metadata = Column("extra_metadata", JSON, default={})
     created_at = Column(DateTime, server_default=func.now())
 
 
@@ -100,7 +100,7 @@ class ToolEmbedding(Base):
     description = Column(Text, nullable=False)  # The text that was embedded
     vector = Column(Vector(768))
     risk_level = Column(String, default="low")
-    metadata_ = Column("metadata", JSON, default={})
+    extra_metadata = Column("extra_metadata", JSON, default={})
     created_at = Column(DateTime, server_default=func.now())
 
 
