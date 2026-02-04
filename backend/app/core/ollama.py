@@ -19,6 +19,28 @@ class OllamaClient:
         except Exception:
             return []
 
+    async def generate(self, model: str, prompt: str, system: Optional[str] = None):
+        try:
+            async with httpx.AsyncClient() as client:
+                payload = {
+                    "model": model,
+                    "prompt": prompt,
+                    "stream": False
+                }
+                if system:
+                    payload["system"] = system
+                    
+                response = await client.post(
+                    f"{self.base_url}/api/generate",
+                    json=payload,
+                    timeout=120.0
+                )
+                if response.status_code == 200:
+                    return response.json()
+                return {"error": f"Failed with status {response.status_code}"}
+        except Exception as e:
+            return {"error": str(e)}
+
     async def chat(self, model: str, messages: List[Dict[str, str]], stream: bool = False):
         try:
             async with httpx.AsyncClient() as client:

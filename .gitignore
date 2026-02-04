@@ -1,12 +1,11 @@
-# Casestudy
-old/
+# Environment
+.env
 backend/.env
 
 # Python
 __pycache__/
 *.py[cod]
 *$py.class
-.pytest_cache/
 .venv/
 venv/
 ENV/
@@ -14,16 +13,7 @@ ENV/
 # Node
 node_modules/
 .next/
-out/
-build/
 dist/
+build/
 
-# Tools/OS
-.DS_Store
-*.log
-.vscode/
-.idea/
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
+old/

@@ -52,11 +52,18 @@ export const TerminalComponent: React.FC<TerminalComponentProps> = ({ logs }) =>
       try {
         const rect = terminalRef.current?.getBoundingClientRect();
         if (rect && rect.width > 0 && rect.height > 0) {
-          // Xterm 5.0+ internal checks
+          // Xterm 5.0+ internal checks to avoid "renderer not ready" errors
           // @ts-ignore
           const core = term._core;
-          if (core && core._renderService && core._renderService.dimensions) {
+          // In some versions of xterm, the renderer is not immediately available
+          const hasRenderer = core?._renderService?._renderer;
+          const isRendererReady = hasRenderer && (hasRenderer.value || hasRenderer._renderer?.value);
+          
+          if (isRendererReady) {
             fitAddon.fit();
+          } else {
+             // If renderer not ready, try again in next frame
+             requestAnimationFrame(fitTerminal);
           }
         }
       } catch (e) {
@@ -67,7 +74,7 @@ export const TerminalComponent: React.FC<TerminalComponentProps> = ({ logs }) =>
     // Small delay to ensure xterm renderer is initialized
     const timer = setTimeout(() => {
       requestAnimationFrame(fitTerminal);
-    }, 100);
+    }, 200);
 
     xtermRef.current = term;
     fitAddonRef.current = fitAddon;
