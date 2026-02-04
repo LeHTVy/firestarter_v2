@@ -85,7 +85,7 @@ class Embedding(Base):
     id = Column(String, primary_key=True)
     object_type = Column(String, nullable=False, index=True)  
     object_id = Column(String, nullable=False, index=True)
-    vector = Column(Vector(1536))  
+    vector = Column(Vector(768))  
     metadata_ = Column("metadata", JSON, default={})
     created_at = Column(DateTime, server_default=func.now())
 
@@ -98,7 +98,7 @@ class ToolEmbedding(Base):
     tool_name = Column(String, nullable=False, index=True)
     command_name = Column(String, nullable=True, index=True)  # NULL = tool-level embedding
     description = Column(Text, nullable=False)  # The text that was embedded
-    vector = Column(Vector(1536))
+    vector = Column(Vector(768))
     risk_level = Column(String, default="low")
     metadata_ = Column("metadata", JSON, default={})
     created_at = Column(DateTime, server_default=func.now())

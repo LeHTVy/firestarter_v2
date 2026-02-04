@@ -22,7 +22,7 @@ from app.tools.tool_knowledge import (
 class ToolRAG:
     """Semantic tool retrieval and selection."""
     
-    def __init__(self, embedding_dim: int = 1536):
+    def __init__(self, embedding_dim: int = 768):
         self.embedding_dim = embedding_dim
         self._tools_cache: Dict[str, ToolKnowledge] = {}
         self._ollama_base_url = "http://localhost:11434"
