@@ -85,9 +85,12 @@ class PentestOrchestrator:
             "mode": session.mode
         }
         system_prompt = template.render(**prompt_context)
-        messages = [{"role": "system", "content": system_prompt}]
+        messages = [
+            {"role": "system", "content": "You are a senior penetration testing intent router. You must always respond in JSON format."},
+            {"role": "user", "content": system_prompt}
+        ]
         
-        response = await ollama_client.chat(model=model, messages=messages)
+        response = await ollama_client.chat(model=model, messages=messages, format="json")
         content = response.get("message", {}).get("content", "{}")
         
         # Parse JSON from LLM
@@ -99,10 +102,11 @@ class PentestOrchestrator:
             else:
                 analysis = json.loads(content)
         except Exception as e:
+            # If JSON parsing fails, log and try one more time or return error
             print(f"❌ Failed to parse LLM JSON: {e}\nRaw content: {content}")
             return {
                 "type": "error",
-                "content": "I had trouble understanding that. Could you try rephrasing?",
+                "content": "I'm having trouble planning the next steps in JSON format. Please try again.",
                 "session_id": session.session_id
             }
 
@@ -123,9 +127,11 @@ class PentestOrchestrator:
                 # Store target in DB and get ID
                 from app.schemas.target import TargetCreate
                 try:
+                    # Use metadata_ to be safe with renamed field
                     target_obj = await memory_manager.store_target(TargetCreate(
-                        domain=session.current_target if "." in session.current_target else None,
-                        ip=session.current_target if re.match(r"^\d+\.\d+\.\d+\.\d+$", session.current_target) else None
+                        domain=session.current_target if "." in session.current_target else "unknown",
+                        ip=session.current_target if re.match(r"^\d+\.\d+\.\d+\.\d+$", session.current_target) else None,
+                        metadata_={}
                     ))
                     session.current_target_id = target_obj.id
                 except Exception as e:

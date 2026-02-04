@@ -19,7 +19,7 @@ class OllamaClient:
         except Exception:
             return []
 
-    async def generate(self, model: str, prompt: str, system: Optional[str] = None):
+    async def generate(self, model: str, prompt: str, system: Optional[str] = None, format: Optional[str] = None):
         try:
             async with httpx.AsyncClient() as client:
                 payload = {
@@ -29,6 +29,8 @@ class OllamaClient:
                 }
                 if system:
                     payload["system"] = system
+                if format:
+                    payload["format"] = format
                     
                 response = await client.post(
                     f"{self.base_url}/api/generate",
@@ -41,7 +43,7 @@ class OllamaClient:
         except Exception as e:
             return {"error": str(e)}
 
-    async def chat(self, model: str, messages: List[Dict[str, str]], stream: bool = False):
+    async def chat(self, model: str, messages: List[Dict[str, str]], stream: bool = False, format: Optional[str] = None):
         try:
             async with httpx.AsyncClient() as client:
                 payload = {
@@ -49,6 +51,9 @@ class OllamaClient:
                     "messages": messages,
                     "stream": stream
                 }
+                if format:
+                    payload["format"] = format
+                    
                 response = await client.post(
                     f"{self.base_url}/api/chat",
                     json=payload,

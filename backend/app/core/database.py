@@ -1,15 +1,21 @@
 """Database connection module using asyncpg/SQLAlchemy (NOT Supabase SDK)."""
 
 import os
+from dotenv import load_dotenv
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import declarative_base
 from sqlalchemy import Column, String, Integer, Text, DateTime, JSON, func
 from pgvector.sqlalchemy import Vector
 
+# Ensure .env is loaded even when running as a script
+load_dotenv()
+load_dotenv(os.path.join(os.getcwd(), ".env"))
+load_dotenv(os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), ".env"))
+
 DATABASE_URL = os.getenv("DATABASE_URL")
 
 if not DATABASE_URL:
-    raise ValueError("❌ DATABASE_URL không tìm thấy trong file .env. Hãy kiểm tra lại!")
+    raise ValueError("❌ DATABASE_URL không tìm thấy trong file .env hoặc biến môi trường. Hãy kiểm tra lại!")
 
 if DATABASE_URL.startswith("postgresql://") and "asyncpg" not in DATABASE_URL:
     DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://", 1)

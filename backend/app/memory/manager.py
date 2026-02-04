@@ -57,7 +57,7 @@ class MemoryManager:
                 id=str(uuid.uuid4()),
                 domain=data.domain,
                 ip=data.ip,
-                metadata_=data.metadata
+                metadata_=data.metadata_
             )
             session.add(target)
             await session.commit()

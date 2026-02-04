@@ -52,29 +52,29 @@ export const TerminalComponent: React.FC<TerminalComponentProps> = ({ logs }) =>
       try {
         const rect = terminalRef.current?.getBoundingClientRect();
         if (rect && rect.width > 0 && rect.height > 0) {
-          // Xterm 5.0+ internal checks to avoid "renderer not ready" errors
           // @ts-ignore
           const core = term._core;
-          // In some versions of xterm, the renderer is not immediately available
-          const hasRenderer = core?._renderService?._renderer;
-          const isRendererReady = hasRenderer && (hasRenderer.value || hasRenderer._renderer?.value);
+          const renderer = core?._renderService?._renderer;
+          const isReady = !!(renderer?.value || core?._renderService?.dimensions);
           
-          if (isRendererReady) {
+          if (isReady) {
             fitAddon.fit();
           } else {
-             // If renderer not ready, try again in next frame
-             requestAnimationFrame(fitTerminal);
+             // Not ready? Try again shortly
+             setTimeout(() => {
+               if (!isDisposed) requestAnimationFrame(fitTerminal);
+             }, 50);
           }
         }
       } catch (e) {
-        // Silently fail as this is frequently a timing issue in React
+        console.warn('⚠️ Terminal fit suppressed:', e);
       }
     };
 
-    // Small delay to ensure xterm renderer is initialized
+    // Delay initialization fitting
     const timer = setTimeout(() => {
       requestAnimationFrame(fitTerminal);
-    }, 200);
+    }, 500);
 
     xtermRef.current = term;
     fitAddonRef.current = fitAddon;
@@ -84,36 +84,48 @@ export const TerminalComponent: React.FC<TerminalComponentProps> = ({ logs }) =>
     const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const wsUrl = `${wsProtocol}//${hostname}:8000/ws/terminal`;
     console.log('🔌 Connecting to Terminal WebSocket:', wsUrl);
-    const socket = new WebSocket(wsUrl);
+    
+    let socket: WebSocket;
+    try {
+      socket = new WebSocket(wsUrl);
+    } catch (e) {
+      console.error('❌ Failed to create WebSocket:', e);
+      return;
+    }
 
     socket.onopen = () => {
       console.log('✅ Terminal WebSocket connected');
       term.writeln('\x1b[1;32m[Connected to Firestarter Backend]\x1b[0m');
-      term.writeln('');
     };
 
     socket.onmessage = (event) => {
-      term.write(event.data);
+      if (!isDisposed) term.write(event.data);
     };
 
     socket.onerror = (error) => {
-      console.error('❌ Terminal WebSocket error:', error);
+      // WebSocket errors are events, logging more detail
+      console.error('❌ Terminal WebSocket error event:', error);
+      if (socket.readyState === WebSocket.CLOSED) {
+         term.writeln('\x1b[1;31m[WebSocket Error: Connection Failed]\x1b[0m');
+      }
     };
 
     socket.onclose = (event) => {
       console.warn('🔌 Terminal WebSocket closed:', event.code, event.reason);
-      term.writeln('\x1b[1;31m[Disconnected from Backend]\x1b[0m');
+      if (!isDisposed) {
+        term.writeln('\x1b[1;31m[Disconnected from Backend]\x1b[0m');
+      }
     };
 
     // Handle user input
     term.onData((data) => {
-      if (socket.readyState === WebSocket.OPEN) {
+      if (socket && socket.readyState === WebSocket.OPEN) {
         socket.send(data);
       }
     });
 
     const resizeObserver = new ResizeObserver(() => {
-      requestAnimationFrame(fitTerminal);
+      if (!isDisposed) requestAnimationFrame(fitTerminal);
     });
 
     resizeObserver.observe(terminalRef.current);
@@ -122,7 +134,13 @@ export const TerminalComponent: React.FC<TerminalComponentProps> = ({ logs }) =>
       isDisposed = true;
       clearTimeout(timer);
       resizeObserver.disconnect();
-      socket.close();
+      if (socket) {
+        socket.onopen = null;
+        socket.onmessage = null;
+        socket.onerror = null;
+        socket.onclose = null;
+        socket.close();
+      }
       term.dispose();
       xtermRef.current = null;
     };

@@ -9,7 +9,12 @@ class TargetBase(BaseModel):
     """Base target schema."""
     domain: str
     ip: Optional[str] = None
-    metadata: Dict[str, Any] = Field(default_factory=dict)
+    metadata_: Dict[str, Any] = Field(default_factory=dict, alias="metadata")
+
+    model_config = {
+        "populate_by_name": True,
+        "from_attributes": True
+    }
 
 
 class TargetCreate(TargetBase):
