@@ -1,0 +1,22 @@
+### Security Tool Result Analysis
+
+As a senior penetration testing assistant, analyze the output from the tool **{{ tool_name }}** and provide a concise, expert summary.
+
+**Tool Name:** {{ tool_name }}
+**Command Executed:** {{ command }}
+**Raw Output Snippet:**
+```
+{{ raw_output | truncate(1500) }}
+```
+
+**Parsed Structured Data:**
+{{ parsed_data | tojson(indent=2) }}
+
+---
+
+### Analysis Requirements:
+1. **Summary:** Briefly explain what this tool found in plain technical language.
+2. **Impact:** What does this mean for the security posture of {{ target }}? Mention specific risks (e.g., "Open port 80 indicates an active web server", "Found 5 new subdomains increasing attack surface").
+3. **Recommendation:** Based on these results, what should be the next logical step in the assessment?
+
+Keep your response professional, concise, and focused on actionable intelligence. Use Markdown for formatting.

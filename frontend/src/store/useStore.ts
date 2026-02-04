@@ -16,6 +16,16 @@ interface Message {
     timestamp: string;
 }
 
+interface PendingAction {
+    action_id: string;
+    tool_name: string;
+    target: string;
+    command: string;
+    description: string;
+    risk_level: 'low' | 'medium' | 'high' | 'critical';
+    estimated_time?: string;
+}
+
 interface AgentState {
     status: 'idle' | 'running' | 'error' | 'finished';
     currentPhase: string;
@@ -26,6 +36,9 @@ interface AgentState {
     availableModels: string[];
     currentModel: string;
     operationalMode: 'quick' | 'multi-agent';
+    agentMode: 'hitl' | 'auto';  // HITL or Auto mode
+    sessionId: string | null;
+    pendingAction: PendingAction | null;
     agentBrainMapping: {
         recon: string;
         exploit: string;
@@ -42,13 +55,16 @@ interface AgentState {
     addMessage: (message: Message) => void;
     setModel: (model: string) => void;
     setMode: (mode: AgentState['operationalMode']) => void;
+    setAgentMode: (mode: AgentState['agentMode']) => void;
+    setPendingAction: (action: PendingAction | null) => void;
     updateAgentBrain: (role: keyof AgentState['agentBrainMapping'], model: string) => void;
     setTarget: (target: string | null) => void;
     fetchModels: () => Promise<void>;
     sendMessage: (content: string) => Promise<void>;
+    confirmAction: (approved: boolean, editedCommand?: string) => Promise<void>;
 }
 
-export const useStore = create<AgentState>((set) => ({
+export const useStore = create<AgentState>((set, get) => ({
     status: 'idle',
     currentPhase: 'Ready',
     progress: 0,
@@ -60,6 +76,9 @@ export const useStore = create<AgentState>((set) => ({
     availableModels: [],
     currentModel: 'Select Model',
     operationalMode: 'quick',
+    agentMode: 'hitl',
+    sessionId: null,
+    pendingAction: null,
     agentBrainMapping: {
         recon: '',
         exploit: '',
@@ -75,10 +94,13 @@ export const useStore = create<AgentState>((set) => ({
     addMessage: (message) => set((state) => ({ messages: [...state.messages, message] })),
     setModel: (model) => set({ currentModel: model }),
     setMode: (mode) => set({ operationalMode: mode }),
+    setAgentMode: (mode) => set({ agentMode: mode }),
+    setPendingAction: (action) => set({ pendingAction: action }),
     updateAgentBrain: (role, model) => set((state) => ({
         agentBrainMapping: { ...state.agentBrainMapping, [role]: model }
     })),
     setTarget: (target) => set({ selectedTarget: target }),
+
     fetchModels: async () => {
         const hostname = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
         const apiUrl = `http://${hostname}:8000`;
@@ -118,15 +140,16 @@ export const useStore = create<AgentState>((set) => ({
                 if (response.ok) {
                     const data = await response.json();
                     const models = data.models.map((m: any) => m.name);
-                    set((state) => ({
+                    set(() => ({
                         availableModels: ['Multi-Model', ...models]
                     }));
                 }
             } catch (ollamaError) {
-                set((state) => ({ availableModels: ['Multi-Model'] }));
+                set(() => ({ availableModels: ['Multi-Model'] }));
             }
         }
     },
+
     sendMessage: async (content: string) => {
         const userMsg: Message = {
             id: Date.now().toString(),
@@ -140,17 +163,32 @@ export const useStore = create<AgentState>((set) => ({
         try {
             const hostname = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
             const apiUrl = `http://${hostname}:8000`;
+            const state = get();
+
             const response = await fetch(`${apiUrl}/api/chat`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     messages: [{ role: 'user', content }],
-                    model: useStore.getState().currentModel
+                    model: state.currentModel,
+                    session_id: state.sessionId,
+                    mode: state.agentMode
                 })
             });
 
             if (response.ok) {
                 const data = await response.json();
+
+                // Update session ID
+                if (data.session_id) {
+                    set({ sessionId: data.session_id });
+                }
+
+                // Handle confirmation required
+                if (data.type === 'confirmation_required' && data.pending_action) {
+                    set({ pendingAction: data.pending_action });
+                }
+
                 const agentMsg: Message = {
                     id: (Date.now() + 1).toString(),
                     role: 'agent',
@@ -170,4 +208,47 @@ export const useStore = create<AgentState>((set) => ({
             set((state) => ({ messages: [...state.messages, errorMsg] }));
         }
     },
+
+    confirmAction: async (approved: boolean, editedCommand?: string) => {
+        const state = get();
+        if (!state.pendingAction || !state.sessionId) {
+            console.error('No pending action or session ID');
+            return;
+        }
+
+        try {
+            const hostname = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
+            const apiUrl = `http://${hostname}:8000`;
+
+            const response = await fetch(`${apiUrl}/api/confirm`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    session_id: state.sessionId,
+                    action_id: state.pendingAction.action_id,
+                    approved,
+                    edited_command: editedCommand
+                })
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+
+                // Clear pending action
+                set({ pendingAction: null });
+
+                // Add response message
+                const agentMsg: Message = {
+                    id: (Date.now() + 1).toString(),
+                    role: 'agent',
+                    content: data.message.content,
+                    timestamp: new Date().toISOString()
+                };
+                set((state) => ({ messages: [...state.messages, agentMsg] }));
+            }
+        } catch (error) {
+            console.error('Failed to confirm action:', error);
+            set({ pendingAction: null });
+        }
+    }
 }));

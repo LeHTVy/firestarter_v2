@@ -48,6 +48,18 @@ class ChatRequest(BaseModel):
     messages: List[ChatMessage]
     model: str = "mistral"
     stream: bool = False
+    session_id: Optional[str] = None
+    mode: str = "hitl"  # "hitl" or "auto"
+
+class ConfirmRequest(BaseModel):
+    session_id: str
+    action_id: str
+    approved: bool
+    edited_command: Optional[str] = None
+
+class SwitchModeRequest(BaseModel):
+    session_id: str
+    mode: str  # "hitl" or "auto"
 
 @app.get("/")
 async def root():
@@ -94,20 +106,87 @@ async def get_models():
 
 @app.post("/api/chat")
 async def chat(request: ChatRequest):
-    """Chat endpoint using the Pentest Orchestrator."""
+    """Chat endpoint using the Pentest Orchestrator with HITL/Auto mode."""
     try:
-        content = await orchestrator.handle_request(
+        result = await orchestrator.handle_request(
             user_prompt=request.messages[-1].content,
-            model=request.model if request.model != "Multi-Model" else "mistral"
+            model=request.model if request.model != "Multi-Model" else "mistral",
+            session_id=request.session_id,
+            mode=request.mode
+        )
+        
+        # Handle different response types
+        if result["type"] == "confirmation_required":
+            return {
+                "type": "confirmation_required",
+                "message": {
+                    "role": "assistant",
+                    "content": result["content"]
+                },
+                "pending_action": result.get("pending_action"),
+                "session_id": result["session_id"]
+            }
+        elif result["type"] == "error":
+            return {
+                "type": "error",
+                "message": {
+                    "role": "assistant",
+                    "content": result["content"]
+                },
+                "session_id": result.get("session_id")
+            }
+        else:
+            return {
+                "type": "response",
+                "message": {
+                    "role": "assistant",
+                    "content": result["content"]
+                },
+                "session_id": result["session_id"]
+            }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/confirm")
+async def confirm_action(request: ConfirmRequest):
+    """Confirm or reject a pending action (HITL mode)."""
+    try:
+        result = await orchestrator.confirm_action(
+            session_id=request.session_id,
+            action_id=request.action_id,
+            approved=request.approved,
+            edited_command=request.edited_command
         )
         return {
+            "type": result["type"],
             "message": {
                 "role": "assistant",
-                "content": content
-            }
+                "content": result["content"]
+            },
+            "session_id": result["session_id"],
+            "executed_command": result.get("executed_command")
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/switch-mode")
+async def switch_mode(request: SwitchModeRequest):
+    """Switch agent mode for a session."""
+    try:
+        result = orchestrator.switch_mode(
+            session_id=request.session_id,
+            mode=request.mode
+        )
+        if not result.get("success"):
+            raise HTTPException(status_code=400, detail=result.get("error", "Failed to switch mode"))
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 @app.websocket("/ws/terminal")
 async def terminal_websocket(websocket: WebSocket):

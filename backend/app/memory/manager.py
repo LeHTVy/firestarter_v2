@@ -17,6 +17,8 @@ class MemoryManager:
     
     - Short-term (Redis): session context, scan progress, tool stdout
     - Long-term (PostgreSQL): targets, ports, findings, embeddings
+    - Vector (pgvector): tool embeddings.
+    - RAG
     """
     
     # ================== SHORT-TERM (Redis) ==================

@@ -1,13 +1,22 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Brain, Zap, History, Database, ChevronRight, MessageSquare, ListFilter } from 'lucide-react';
+import { Brain, Zap, History, Database, ChevronRight, MessageSquare, ListFilter, User, Bot } from 'lucide-react';
 import { useStore } from '@/store/useStore';
 import { Chat } from './Chat';
+import ConfirmationDialog from './ConfirmationDialog';
 
 export const Intelligence = () => {
   const [activeTab, setActiveTab] = useState<'insights' | 'chat'>('insights');
-  const { findings } = useStore();
+  const { findings, agentMode, setAgentMode, pendingAction, confirmAction, setPendingAction } = useStore();
+
+  const handleConfirm = async (approved: boolean, editedCommand?: string) => {
+    await confirmAction(approved, editedCommand);
+  };
+
+  const handleCloseDialog = () => {
+    setPendingAction(null);
+  };
 
   return (
     <div className="flex-1 h-full bg-background/50 backdrop-blur-md flex flex-col">
@@ -33,6 +42,39 @@ export const Intelligence = () => {
           Agent Chat
         </button>
       </div>
+
+      {/* Mode Toggle - Only visible in chat tab */}
+      {activeTab === 'chat' && (
+        <div className="px-3 py-2 border-b border-border bg-zinc-900/50 flex items-center justify-between">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+            Agent Mode
+          </span>
+          <div className="flex items-center gap-1 p-0.5 rounded-lg bg-zinc-800 border border-zinc-700">
+            <button
+              onClick={() => setAgentMode('hitl')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all ${
+                agentMode === 'hitl'
+                  ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/50'
+                  : 'text-zinc-500 hover:text-zinc-300'
+              }`}
+            >
+              <User className="w-3 h-3" />
+              Human-in-Loop
+            </button>
+            <button
+              onClick={() => setAgentMode('auto')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all ${
+                agentMode === 'auto'
+                  ? 'bg-green-500/20 text-green-400 border border-green-500/50'
+                  : 'text-zinc-500 hover:text-zinc-300'
+              }`}
+            >
+              <Bot className="w-3 h-3" />
+              Auto
+            </button>
+          </div>
+        </div>
+      )}
 
       <div className="flex-1 overflow-hidden flex flex-col p-2">
         {activeTab === 'insights' ? (
@@ -94,6 +136,15 @@ export const Intelligence = () => {
           <ChevronRight className="w-3.5 h-3.5 opacity-50" />
         </button>
       </div>
+
+      {/* Confirmation Dialog */}
+      {pendingAction && (
+        <ConfirmationDialog
+          action={pendingAction}
+          onConfirm={handleConfirm}
+          onClose={handleCloseDialog}
+        />
+      )}
     </div>
   );
 };

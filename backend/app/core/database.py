@@ -84,6 +84,20 @@ class Embedding(Base):
     created_at = Column(DateTime, server_default=func.now())
 
 
+class ToolEmbedding(Base):
+    """Dedicated table for tool knowledge embeddings (RAG)."""
+    __tablename__ = "tool_embeddings"
+    
+    id = Column(String, primary_key=True)
+    tool_name = Column(String, nullable=False, index=True)
+    command_name = Column(String, nullable=True, index=True)  # NULL = tool-level embedding
+    description = Column(Text, nullable=False)  # The text that was embedded
+    vector = Column(Vector(1536))
+    risk_level = Column(String, default="low")
+    metadata_ = Column("metadata", JSON, default={})
+    created_at = Column(DateTime, server_default=func.now())
+
+
 # ================== DB UTILITIES ==================
 
 async def init_db():
